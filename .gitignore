@@ -66,3 +66,22 @@ Thumbs.db
 
 # Playwright artifacts
 test-results/
+
+# Backup files
+*.bak
+*.bak2
+*.backup
+
+# htpasswd / auth files
+.htpasswd
+htpasswd
+
+# Config de produção com segredos
+claw-empire-config/
+install-*.sh
+
+# Chaves e certificados extras
+*.pfx
+*.jks
+authorized_keys
+known_hosts

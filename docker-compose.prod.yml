@@ -1,0 +1,46 @@
+# Claw Empire — docker-compose.prod.yml
+# Adaptado para VPS Uid Software
+# Porta: 8005 (próxima disponível)
+# nginx-proxy roteia: empire.uidsoftware.com.br → 8005
+# Instalar em: /opt/claw-empire/
+
+version: '3.8'
+
+services:
+  claw-empire:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: claw-empire
+    restart: always
+    ports:
+      - "127.0.0.1:8005:8790"   # só localhost — nginx-proxy expõe externamente
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0             # necessário dentro do container
+      - PORT=8790
+      - DB_PATH=/app/data/claw-empire.sqlite
+      - LOGS_DIR=/app/data/logs
+    env_file:
+      - .env.prod                # credenciais fora do compose
+    volumes:
+      - claw_empire_data:/app/data    # persiste SQLite + logs
+      - /opt/uid-skills:/app/skills:ro
+      - /root/.claude.json:/home/app/.claude.json:ro
+      - /root/.claude:/home/app/.claude-host:ro # UidSkills readonly
+    networks:
+      - claw-empire-network
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8790/healthz"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  claw_empire_data:
+    driver: local
+
+networks:
+  claw-empire-network:
+    driver: bridge

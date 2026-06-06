@@ -21,6 +21,17 @@ services:
       - PORT=8790
       - DB_PATH=/app/data/claw-empire.sqlite
       - LOGS_DIR=/app/data/logs
+      - GIT_CONFIG_COUNT=5
+      - GIT_CONFIG_KEY_0=safe.directory
+      - GIT_CONFIG_VALUE_0=/home/app/projects/SytemD
+      - GIT_CONFIG_KEY_1=safe.directory
+      - GIT_CONFIG_VALUE_1=/var/www/studio-fluir
+      - GIT_CONFIG_KEY_2=safe.directory
+      - GIT_CONFIG_VALUE_2=/opt/claw-empire
+      - GIT_CONFIG_KEY_3=safe.directory
+      - GIT_CONFIG_VALUE_3=/opt/uid-skills
+      - GIT_CONFIG_KEY_4=safe.directory
+      - GIT_CONFIG_VALUE_4=/opt/uidmail
     env_file:
       - .env.prod                # credenciais fora do compose
     volumes:

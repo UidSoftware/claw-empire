@@ -28,6 +28,12 @@ services:
       - /opt/uid-skills:/app/skills:ro
       - /opt/claw-empire-config/claude-user.json:/home/app/.claude.json
       - /opt/claw-empire-config/claude-settings.json:/home/app/.claude/settings.json:ro
+      # Projetos Uid montados para acesso dos agents
+      - /var/www/studio-fluir:/var/www/studio-fluir
+      - /root/SytemD:/home/app/projects/SytemD
+      - /opt/uid-skills:/opt/uid-skills
+      - /opt/uidmail:/opt/uidmail
+      - /opt/claw-empire:/opt/claw-empire
       - /root/.claude:/home/app/.claude-host:ro # UidSkills readonly
     networks:
       - claw-empire-network

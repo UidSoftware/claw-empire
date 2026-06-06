@@ -1,6 +1,6 @@
 # CLAUDE.md — Claw Empire (Uid Software)
 > Leia este arquivo SEMPRE antes de qualquer ação.
-> Última atualização: 2026-06-05
+> Última atualização: 2026-06-05 (v2)
 
 ---
 
@@ -65,10 +65,20 @@ curl http://localhost:8005/healthz
 
 **Volumes montados:**
 ```yaml
-- claw_empire_data:/app/data          # SQLite + logs (persistente)
-- /opt/uid-skills:/app/skills:ro      # Skills da Uid (somente leitura)
-- /root/.claude.json:/home/app/.claude.json:ro   # Credenciais Claude
+- claw_empire_data:/app/data                          # SQLite + logs (persistente)
+- /opt/uid-skills:/app/skills:ro                      # Skills da Uid (somente leitura)
+- /opt/claw-empire-config/claude-user.json:/home/app/.claude.json   # Auth + MCP (writable)
+- /opt/claw-empire-config/claude-settings.json:/home/app/.claude/settings.json:ro
+# Projetos Uid montados para acesso dos agents:
+- /var/www/studio-fluir:/var/www/studio-fluir
+- /root/SytemD:/home/app/projects/SytemD            # /root inacessível pelo user app
+- /opt/uid-skills:/opt/uid-skills
+- /opt/uidmail:/opt/uidmail
+- /opt/claw-empire:/opt/claw-empire
 ```
+
+**Atenção:** `/opt/claw-empire-config/claude-user.json` contém o OAuth token do Claude.
+Atualizar manualmente se o token expirar (copiar do `/root/.claude.json` + adicionar `mcpServers`).
 
 ---
 
@@ -102,13 +112,30 @@ Fonte: `/opt/uid-skills/.claude/skills/` (montado como volume)
 O container usa `CLAUDE_CODE_OAUTH_TOKEN` do `.env.prod` para autenticar o
 `claude` CLI instalado em `/usr/local/bin/claude` (versão 2.1.165).
 
-O `/root/.claude.json` do host é montado em `/home/app/.claude.json:ro`
-para que o sistema de detecção de providers reconheça Claude como conectado.
+`/opt/claw-empire-config/claude-user.json` é uma cópia do `/root/.claude.json`
+com `mcpServers` integrado, montado como **writable** em `/home/app/.claude.json`.
 
 ```bash
-# Testar autenticação dentro do container
+# Testar autenticação
 docker exec claw-empire sh -c 'claude --version'
 # → 2.1.165 (Claude Code)
+
+# Verificar MCP
+docker exec claw-empire sh -c 'claude mcp list'
+# → systemd: npx ... ✓ Connected
+
+# Se o token expirar, regenerar o claude-user.json:
+python3 -c "
+import json
+base = json.load(open('/root/.claude.json'))
+base['mcpServers'] = {
+  'systemd': {'type': 'stdio', 'command': 'npx',
+    'args': ['-y', '@modelcontextprotocol/server-postgres',
+             'postgresql://uid_user:Uid%402026%21ForteProd@172.19.0.2:5432/uid_sistema']}
+}
+json.dump(base, open('/opt/claw-empire-config/claude-user.json', 'w'), indent=2)
+"
+docker compose -f /opt/claw-empire/docker-compose.prod.yml restart
 ```
 
 ---
@@ -137,14 +164,16 @@ Contém: agents/, settings.json, claude.json, CLAUDE.md
 ```
 ✅ Container no ar e healthy
 ✅ SSL empire.uidsoftware.com.br ativo
-✅ Claude Code autenticado (7 agents auto-atribuídos)
-✅ 10 agents da Uid criados
-✅ 10 skills carregadas
+✅ Claude Code autenticado (7 agents auto-atribuídos ao claude)
+✅ 10 agents da Uid criados (Planner⭐, Analista, doc-generator, Blueprint,
+   Forge, Loom, Brush, Sentinel, Pilot, Hotfix)
+✅ 10 skills carregadas via POST /api/skills/custom
 ✅ Planner configurado como planning leader
-
-⬜ Configurar MCP PostgreSQL SystemD
-   → Settings > MCP no Empire
-   → Connection: postgresql://uid_user:***@127.0.0.1:5433/uid_sistema
+✅ MCP PostgreSQL SystemD configurado e Connected
+   → postgresql://uid_user:***@172.19.0.2:5432/uid_sistema (rede Docker interna)
+   → claw-empire conectado à rede sytemd_default
+✅ 5 projetos registrados (Nos Studio Fluir, SystemD, Claw Empire, UidMail, UidSkills)
+✅ Health check corrigido: curl → node fetch (curl ausente na imagem)
 
 ⬜ Atualizar SystemD (menu Empire)
    → iframe aponta para empire.uidsoftware.com.br
@@ -167,9 +196,50 @@ Contém: agents/, settings.json, claude.json, CLAUDE.md
 
 ---
 
+## MCP — SystemD PostgreSQL
+
+```
+Provider: systemd
+Tipo: stdio
+Comando: npx -y @modelcontextprotocol/server-postgres
+Banco: uid_sistema (PostgreSQL no container sytemd-db-1)
+Rede: sytemd_default (172.19.0.2:5432)
+Tools disponíveis: mcp__systemd__query, mcp__systemd__list_tables,
+                   mcp__systemd__describe_table, mcp__systemd__list_schemas
+```
+
+O claw-empire está na rede `sytemd_default` via `docker network connect`.
+Restart do container preserva essa conexão de rede.
+
+---
+
+## Projetos registrados
+
+| Projeto | Path no container | GitHub |
+|---|---|---|
+| Nos Studio Fluir | `/var/www/studio-fluir` | UidSoftware/NosFluir |
+| SystemD | `/home/app/projects/SytemD` | UidSoftware/SytemD |
+| Claw Empire | `/opt/claw-empire` | UidSoftware/claw-empire |
+| UidMail | `/opt/uidmail` | UidSoftware/Uidmail |
+| UidSkills | `/opt/uid-skills` | UidSoftware/UidSkills |
+
+> `/root/SytemD` é montado como `/home/app/projects/SytemD` porque o diretório
+> `/root` não é acessível pelo usuário `app` (uid 10001) dentro do container.
+
+---
+
 ## Histórico de instalação
 
-### [2026-06-05] — Instalação inicial Claw Empire
+### [2026-06-05 v2] — MCP, projetos e correções pós-instalação
+
+- MCP PostgreSQL SystemD configurado via `claude-user.json` (writable) + rede Docker
+- Health check corrigido: `curl` → `node fetch` (curl ausente na imagem Alpine)
+- 5 projetos Uid registrados via `POST /api/projects`
+- Diretórios dos projetos montados como volumes no container
+- SystemD remapeado para `/home/app/projects/SytemD` (`/root` inacessível pelo user `app`)
+- `auth_basic` removido do nginx (bloqueava Bearer token do frontend React)
+
+### [2026-06-05 v1] — Instalação inicial Claw Empire
 
 - Backup do uid-office em `/opt/backups/uid-office-20260605/`
 - Container claude-office parado e removido

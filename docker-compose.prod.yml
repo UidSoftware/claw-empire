@@ -45,6 +45,10 @@ services:
       - /opt/uid-skills:/opt/uid-skills
       - /opt/uidmail:/opt/uidmail
       - /opt/claw-empire:/opt/claw-empire
+      # SSH para git push ao GitHub
+      - /opt/claw-empire-config/ssh/id_ed25519_github:/home/app/.ssh/id_ed25519_github:ro
+      - /opt/claw-empire-config/ssh/known_hosts:/home/app/.ssh/known_hosts:ro
+      - /opt/claw-empire-config/ssh/config:/home/app/.ssh/config:ro
       - /root/.claude:/home/app/.claude-host:ro # UidSkills readonly
     networks:
       - claw-empire-network

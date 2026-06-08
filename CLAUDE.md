@@ -1,6 +1,6 @@
 # CLAUDE.md — Claw Empire (Uid Software)
 > Leia este arquivo SEMPRE antes de qualquer ação.
-> Última atualização: 2026-06-05 (v2)
+> Última atualização: 2026-06-08 (v3 — merge UidSkills)
 
 ---
 
@@ -13,6 +13,60 @@ Substituiu o **Uid Office** (Claude Office Visualizer) em 2026-06-05.
 
 **Acesso:** https://empire.uidsoftware.com.br
 **API token:** em `/opt/claw-empire/.env.prod` (campo `API_AUTH_TOKEN`)
+
+---
+
+## Como o Claude Code usa este projeto
+
+Ao abrir o Claude Code neste diretório (ou conectar via Claw Empire), você tem acesso
+ao time completo de agents da Uid. Cada skill é um especialista.
+
+Skills disponíveis em `/opt/claw-empire/.claude/skills/` (copiadas do uid-skills).
+
+**Nunca execute uma skill sem ler sua descrição primeiro.**
+**Nunca pule etapas do pipeline — o Planner orquestra a ordem.**
+
+---
+
+## O Pipeline da Fábrica
+
+```
+LEAD NO BANCO (MCP PostgreSQL — vitrine_lead)
+        ↓
+   [PLANNER]          ← lê lead via MCP, qualifica, orquestra tudo
+        ↓
+   [ANALISTA]         ← elicita, modela, documenta (Sommerville)
+        ↓
+   [ARQUITETURA]      ← Luiz Eduardo preenche no SystemD
+                         Office → Novo Projeto → Arquitetura Técnica
+                         Salva em ordens_arquiteturatecnica (banco)
+                         Planner lê via MCP e continua
+        ↓
+   [DOC-GENERATOR]    ← gera 8 documentos do projeto
+        ↓
+   [BLUEPRINT] + [BRUSH] ← técnica + visual (paralelo)
+        ↓
+   [FORGE] + [LOOM]   ← backend + frontend (paralelo)
+        ↓
+   [SENTINEL]         ← valida tudo — nada passa sem aprovação
+        ↓
+   [PILOT]            ← CI/CD, deploy na VPS, zero SSH manual
+        ↓
+SISTEMA EM PRODUÇÃO → MENSALIDADE NA CONTA 💰
+```
+
+**Pipeline de manutenção (Hotfix):**
+```
+Boss CLI (CEO Desk)
+    ↓
+Hotfix (lê CLAUDE.md do projeto, diagnóstico, handoff)
+    ↓
+Planner (classifica tarefas, orquestra)
+    ↓
+Forge + Loom (paralelo)
+    ↓
+Sentinel → Pilot
+```
 
 ---
 
@@ -100,10 +154,60 @@ Atualizar manualmente se o token expirar (copiar do `/root/.claude.json` + adici
 Também existem 14 agents default do Claw Empire (Luna, Pixel, Bolt, Aria, etc.)
 coexistindo com os da Uid — se complementam.
 
-**Skills carregadas:** PlannerSKILL, AnalistaSKILL, BlueprintSKILL, BrushSKILL,
-ForgeSKILL, LoomSKILL, SentinelSKILL, PilotSKILL, HotfixSKILL, DocGeneratorSKILL.
-Localização no container: `/app/data/custom-skills/`
-Fonte: `/opt/uid-skills/.claude/skills/` (montado como volume)
+**Skills de suporte (usadas por outros agents):**
+- AnalistaUML.md → consultar ao gerar qualquer diagrama UML
+
+---
+
+## Metodologia
+
+```
+Scrum  → relacionamento Uid ↔ cliente
+         sprints quinzenais, backlog visível, review com cliente
+         board no SystemD (menu Empire)
+
+Kanban → execução interna dos agents
+         fluxo contínuo, sem cerimônia
+         visualização no Claw Empire
+```
+
+---
+
+## Stack padrão Uid (todos os projetos)
+
+```
+Backend:  Python 3.12 + Django 5.x + DRF + SimpleJWT
+Frontend: React 18 + Vite + Tailwind CSS + PWA
+Banco:    PostgreSQL 16
+Infra:    Docker Compose + Nginx + Gunicorn
+CI/CD:    GitHub Actions (zero SSH manual)
+VPS:      Ubuntu 24.04 — 209.50.241.122
+```
+
+Adaptar stack apenas se o cliente tiver tecnologia legada
+ou requisito técnico específico documentado no ADR.
+
+---
+
+## Regras absolutas (todos os agents respeitam)
+
+```
+✅ Soft delete em todos os models — NUNCA objeto.delete()
+✅ DecimalField para dinheiro — NUNCA Float
+✅ Autenticação por email — NUNCA username
+✅ response.data.results no frontend — NUNCA .data direto
+✅ Migrations geradas no dev — NUNCA na VPS
+✅ Credenciais no .env — NUNCA hardcode
+✅ App 'os' proibido — usar 'ordens' com URL /api/os/
+✅ LivroCaixa imutável — ReadCreateViewSet
+✅ Signals com transaction.atomic() — SEMPRE
+✅ CI/CD via GitHub Actions — NUNCA SSH manual no fluxo normal
+✅ Testes passando antes de qualquer deploy
+✅ Sentinel aprova antes do Pilot executar
+✅ Brush define design system antes do Loom começar
+✅ Fontes: Plus Jakarta Sans + DM Sans — NUNCA Inter/Roboto/Arial
+✅ Overflow-hidden NUNCA no SistemaLayout root
+```
 
 ---
 
@@ -140,62 +244,6 @@ docker compose -f /opt/claw-empire/docker-compose.prod.yml restart
 
 ---
 
-## Nginx
-
-Config: `/var/www/nginx-proxy/conf.d/claw-empire.conf`
-Sem `auth_basic` — autenticação feita pelo próprio Claw Empire via API token.
-
-```bash
-# Recarregar nginx
-docker exec nginx-proxy-proxy-1 nginx -s reload
-```
-
----
-
-## Backup do Office (pré-migração)
-
-Backup em: `/opt/backups/uid-office-20260605/`
-Contém: agents/, settings.json, claude.json, CLAUDE.md
-
----
-
-## Pendências pós-instalação
-
-```
-✅ Container no ar e healthy
-✅ SSL empire.uidsoftware.com.br ativo
-✅ Claude Code autenticado (7 agents auto-atribuídos ao claude)
-✅ 10 agents da Uid criados (Planner⭐, Analista, doc-generator, Blueprint,
-   Forge, Loom, Brush, Sentinel, Pilot, Hotfix)
-✅ 10 skills carregadas via POST /api/skills/custom
-✅ Planner configurado como planning leader
-✅ MCP PostgreSQL SystemD configurado e Connected
-   → postgresql://uid_user:***@172.19.0.2:5432/uid_sistema (rede Docker interna)
-   → claw-empire conectado à rede sytemd_default
-✅ 5 projetos registrados (Nos Studio Fluir, SystemD, Claw Empire, UidMail, UidSkills)
-✅ Health check corrigido: curl → node fetch (curl ausente na imagem)
-
-⬜ Atualizar SystemD (menu Empire)
-   → iframe aponta para empire.uidsoftware.com.br
-
-⬜ Configurar GitHub OAuth
-   → Settings > OAuth > GitHub
-   → Permite agents fazerem push/PR
-
-⬜ Configurar Messenger (WhatsApp/Telegram)
-   → Settings > Channel Messages
-   → "$" + comando → CEO Directive
-
-⬜ Testar pipeline completo
-   → CEO Desk: "Hotfix, sistema Studio Fluir. Tarefa: [desc]. Inicie."
-   → Verificar Planner orquestrando Forge + Loom
-
-⬜ Adicionar department prompt em cada department com as regras da Uid
-   → Settings > Departments > Edit
-```
-
----
-
 ## MCP — SystemD PostgreSQL
 
 ```
@@ -210,6 +258,52 @@ Tools disponíveis: mcp__systemd__query, mcp__systemd__list_tables,
 
 O claw-empire está na rede `sytemd_default` via `docker network connect`.
 Restart do container preserva essa conexão de rede.
+
+**Permissões MCP** (em `/root/.claude/settings.json`):
+`mcp__systemd__query`, `mcp__systemd__list_tables`, `mcp__systemd__describe_table`
+
+**Queries principais do Planner:**
+```sql
+-- Novos leads aguardando qualificação
+SELECT * FROM vitrine_lead WHERE convertido = false ORDER BY criado_em DESC;
+
+-- Arquitetura Técnica salva no SystemD
+SELECT * FROM ordens_arquiteturatecnica ORDER BY criado_em DESC LIMIT 1;
+
+-- Criar OS após aprovação
+INSERT INTO ordens_os (cliente_id, titulo, status) VALUES (...);
+
+-- Marcar lead como convertido
+UPDATE vitrine_lead SET convertido = true WHERE id = X;
+```
+
+---
+
+## Nginx
+
+Config: `/var/www/nginx-proxy/conf.d/claw-empire.conf`
+Sem `auth_basic` — autenticação feita pelo próprio Claw Empire via API token.
+
+```bash
+# Recarregar nginx
+docker exec nginx-proxy-proxy-1 nginx -s reload
+```
+
+---
+
+## Infra VPS — portas ocupadas
+
+| Projeto | Porta | Domínio |
+|---|---|---|
+| Studio Fluir | 8001 | nostudiofluir.com.br |
+| SystemD | 8002 | uidsoftware.com.br |
+| Mailcow HTTP | 8080 | mail.uidsoftware.com.br |
+| Mailcow HTTPS | 8443 | mail.uidsoftware.com.br |
+| UidMail | 8084 | uidmail.uidsoftware.com.br |
+| **Claw Empire** | **8005** | empire.uidsoftware.com.br |
+| **Próximo cliente** | **8003+** | a definir |
+
+> Sempre verificar porta disponível antes de definir no docker-compose.prod.yml
 
 ---
 
@@ -228,33 +322,107 @@ Restart do container preserva essa conexão de rede.
 
 ---
 
-## Histórico de instalação
+## Como testar o pipeline (projeto fictício)
+
+```bash
+# 1. Abrir Claude Code neste diretório
+claude
+
+# 2. Simular lead qualificado
+"Tenho um lead: João da Silva, Salão de Beleza Corte & Estilo,
+ Uberlândia/MG. Problema: controla tudo no papel e WhatsApp.
+ Quer sistema para agendamentos, clientes e financeiro.
+ Planner, avalie e inicie o pipeline."
+
+# 3. Acompanhar a esteira rodar
+# Planner → Analista → doc-generator → Blueprint + Brush → Forge + Loom → ...
+
+# 4. Validar cada output antes de avançar
+# 5. Identificar onde trava e ajustar a skill correspondente
+```
+
+---
+
+## Backup do Office (pré-migração)
+
+Backup em: `/opt/backups/uid-office-20260605/`
+Contém: agents/, settings.json, claude.json, CLAUDE.md
+
+---
+
+## Pendências
+
+```
+✅ Container no ar e healthy
+✅ SSL empire.uidsoftware.com.br ativo
+✅ Claude Code autenticado (7 agents auto-atribuídos ao claude)
+✅ 10 agents da Uid criados (Planner⭐, Analista, doc-generator, Blueprint,
+   Forge, Loom, Brush, Sentinel, Pilot, Hotfix)
+✅ 10 skills carregadas via POST /api/skills/custom
+✅ Planner configurado como planning leader
+✅ MCP PostgreSQL SystemD configurado e Connected
+✅ 5 projetos registrados (Nos Studio Fluir, SystemD, Claw Empire, UidMail, UidSkills)
+✅ Health check corrigido: curl → node fetch (curl ausente na imagem)
+
+⬜ Atualizar SystemD (menu Empire) → iframe aponta para empire.uidsoftware.com.br
+⬜ Configurar GitHub OAuth → Settings > OAuth > GitHub
+⬜ Configurar Messenger (WhatsApp/Telegram) → Settings > Channel Messages
+⬜ Testar pipeline completo via CEO Desk
+⬜ Adicionar department prompt com regras Uid em cada department
+⬜ AnalistaSKILL — integrar com MCP PostgreSQL do SystemD (lead real)
+⬜ PlannerSKILL — integrar com MCP PostgreSQL do SystemD
+⬜ Criar skill de n8n (notificações automáticas)
+⬜ Testar pipeline completo com projeto fictício (salão de beleza)
+⬜ Criar templates por segmento (saúde, salão, agro, loja)
+⬜ Versionamento das skills (tag por projeto executado com sucesso)
+```
+
+---
+
+## Contatos Uid Software
+
+```
+WhatsApp: (34) 99134-9194
+Email:    contato@uidsoftware.com.br
+Site:     www.uidsoftware.com.br
+GitHub:   github.com/UidSoftware
+VPS:      209.50.241.122 (usuário: notuidsoftware)
+```
+
+---
+
+## Histórico
+
+### [2026-06-08] — Merge CLAUDE.md UidSkills → Empire
+
+- Pipeline da Fábrica + pipeline Hotfix documentados
+- Stack padrão Uid adicionada
+- Regras absolutas adicionadas
+- Metodologia Scrum/Kanban adicionada
+- Infra VPS: OfficeUid 8004 → Claw Empire 8005 (atualizado)
+- MCP: queries do Planner e permissões integradas numa seção única
+- Pendências das duas fontes mescladas
+
+### [2026-06-04/05] — HotfixSKILL criada + pipeline Hotfix→Planner corrigido
+
+- HotfixSKILL criada: papel exclusivo de diagnóstico e handoff — nunca implementa código
+- Guardrail: NUNCA chamar Agent(subagent_type='hotfix') recursivamente
+- BrushSKILL simplificada: removida integração com ui-ux-pro-max
+- Pipeline corrigido: Hotfix→Planner (não Planner→Hotfix)
+- Pipeline validado em produção no Studio Fluir: 30 melhorias, 117 testes passando
 
 ### [2026-06-05 v2] — MCP, projetos e correções pós-instalação
 
-- MCP PostgreSQL SystemD configurado via `claude-user.json` (writable) + rede Docker
-- Health check corrigido: `curl` → `node fetch` (curl ausente na imagem Alpine)
-- 5 projetos Uid registrados via `POST /api/projects`
-- Diretórios dos projetos montados como volumes no container
-- SystemD remapeado para `/home/app/projects/SytemD` (`/root` inacessível pelo user `app`)
-- `auth_basic` removido do nginx (bloqueava Bearer token do frontend React)
+- MCP PostgreSQL SystemD configurado via claude-user.json + rede Docker
+- Health check corrigido: curl → node fetch (curl ausente na imagem Alpine)
+- 5 projetos Uid registrados via POST /api/projects
+- auth_basic removido do nginx (bloqueava Bearer token do frontend React)
 
 ### [2026-06-05 v1] — Instalação inicial Claw Empire
 
-- Backup do uid-office em `/opt/backups/uid-office-20260605/`
-- Container claude-office parado e removido
-- `/opt/uid-office` removido, nginx config do Office removido
-- Fork `UidSoftware/claw-empire` clonado em `/opt/claw-empire`
-- `.env.prod` gerado com secrets automáticos
-- SSL emitido via certbot webroot
-- Build Docker ~10min, container subiu healthy na porta 8005
-- `auth_basic` removido do nginx (conflitava com Bearer token do frontend)
-- `CLAUDE_CODE_OAUTH_TOKEN` adicionado ao `.env.prod`
-- `/root/.claude.json` montado para detecção de provider
-- 7 agents default auto-atribuídos ao claude pelo Empire
-- 10 agents Uid criados via API
-- 10 skills carregadas via `POST /api/skills/custom`
-- Planner definido como planning leader
+- Backup do uid-office em /opt/backups/uid-office-20260605/
+- Fork UidSoftware/claw-empire clonado, SSL emitido, container healthy na porta 8005
+- 10 agents Uid criados via API, 10 skills carregadas, Planner definido como planning leader
 
 ---
 

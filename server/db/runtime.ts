@@ -19,7 +19,7 @@ export const SQLITE_BUSY_RETRY_MAX_DELAY_MS = Math.max(
   readNonNegativeIntEnv("SQLITE_BUSY_RETRY_MAX_DELAY_MS", 400),
 );
 export const SQLITE_BUSY_RETRY_JITTER_MS = readNonNegativeIntEnv("SQLITE_BUSY_RETRY_JITTER_MS", 20);
-export const REVIEW_FINAL_DECISION_ROUND = 3;
+export const REVIEW_FINAL_DECISION_ROUND = 1;
 export const REVIEW_MAX_ROUNDS = Math.max(
   REVIEW_FINAL_DECISION_ROUND,
   Math.min(readNonNegativeIntEnv("REVIEW_MAX_ROUNDS", REVIEW_FINAL_DECISION_ROUND), 6),

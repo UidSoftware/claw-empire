@@ -10,6 +10,7 @@
 ## Language Rule
 
 **Always match the user's language.** Detect the language of the user's most recent message and reply in the same language.
+- Portuguese (pt-BR) message -> reply in Portuguese (pt-BR) — **default for Uid Software**
 - Korean message -> reply in Korean
 - English message -> reply in English
 - Other languages -> reply in that language
@@ -397,6 +398,8 @@ Agents must NOT create commits by default.
 - **Never commit until tests have been run**
 - **Only commit after the user explicitly approves**
 
+**Exception — Pilot agent (CI/CD):** When the assigned agent is **Pilot** (DevSecOps) and Sentinel has approved the task, Pilot is authorized to commit and push without asking. This is mandatory — without Pilot's commit+push, GitHub Actions never triggers and production never updates.
+
 ---
 
 ## API Reference
@@ -478,6 +481,120 @@ When processing `$` or `#` commands, the response to the user must be **minimal 
    - Model configuration details
 
 ---
+
+
+---
+
+## Uid Software — Pipeline da Fábrica
+
+> Regras aditivas para projetos Uid Software. Têm prioridade sobre as regras gerais quando em conflito.
+
+### Idioma padrão: Português Brasileiro (pt-BR)
+
+Todos os directives e tasks da Uid Software são respondidos em **pt-BR**:
+- Confirmação `$`: `✅ Directive enviada`
+- Confirmação `#`: `✅ Task registrada — [Agent] em execução`
+- Erros e status: em português
+
+### Classificação automática de tasks (NÃO perguntar sobre meeting)
+
+Ao receber um `$` directive, classificar automaticamente e decidir meeting/agente sem perguntar:
+
+| Classificação | Palavras-chave | Agent | Meeting |
+|---|---|---|---|
+| Hotfix / Bug | bug, erro, quebrou, fix, corrigir, não funciona, hotfix | Hotfix | skip |
+| UI simples | ícone, botão, cor, texto, layout, ajuste visual | Loom ou Hotfix | skip |
+| Feature | adicionar, implementar, novo módulo, nova tela | Planner | skip |
+| Novo projeto | novo projeto, novo cliente, novo sistema, do zero | Planner | hold (briefing) |
+| Manutenção | melhorar, refatorar, otimizar, atualizar | Planner | skip |
+
+**Review:** Sempre apenas o **Sentinel** — nunca todos os department leaders.
+
+### Flow do CEO Directive ($) para Uid Software
+
+1. Detectar idioma (provavelmente pt-BR)
+2. **Classificar task automaticamente** (tabela acima)
+3. Resolver projeto (existente ou novo) — perguntar APENAS se não for claro
+4. **NÃO perguntar sobre meeting** — decidir pela classificação:
+   - `novo projeto` → `skipPlannedMeeting: false`
+   - Todos os outros → `skipPlannedMeeting: true`
+5. Enviar directive e confirmar em pt-BR
+
+### IDs dos Agents Uid no banco (referência fixa)
+
+```
+Planner       → 6e056ad9   (planning / team_leader)
+Analista      → 2ddbd186   (planning / senior)
+doc-generator → a6fee182   (planning / junior)
+Blueprint     → 6fb641a5   (dev / team_leader)
+Forge         → bf048283   (dev / senior)
+Loom          → 6174370b   (dev / senior)
+Brush         → de9b5ad5   (design / team_leader)
+Sentinel      → 1700916e   (qa / team_leader)
+Pilot         → 4ef35c55   (devsecops / team_leader)
+Hotfix        → 690df50c   (operations / senior)
+```
+
+### Pipeline: Novo Projeto
+
+```
+$ novo projeto → Planner (lê banco MCP, qualifica lead, orquestra)
+                    ↓ task done
+                 Analista (elicitação, UML, MER)
+                    ↓ task done
+                 doc-generator (gera 8 docs)
+                    ↓ task done
+                 Blueprint + Brush (paralelo)
+                    ↓ ambos done
+                 Forge + Loom (paralelo — back + front)
+                    ↓ ambos done
+                 Sentinel (valida tudo)
+                    ↓ approved
+                 Pilot (commit + push → CI/CD → produção)
+```
+
+**Handoff automático entre etapas — executar sem perguntar ao usuário:**
+
+```bash
+# Monitorar task atual
+curl -s http://127.0.0.1:8790/api/tasks/<task_id>
+
+# Criar próxima task
+curl -s -X POST http://127.0.0.1:8790/api/tasks \
+  -H 'content-type: application/json' \
+  -d '{"title":"[ProximoAgent] <etapa> — <projeto>","description":"<instrucoes>","project_path":"<path>"}'
+
+# Atribuir e executar
+curl -s -X POST http://127.0.0.1:8790/api/tasks/<id>/assign -H 'content-type: application/json' -d '{"agent_id":"<uid>"}'
+curl -s -X POST http://127.0.0.1:8790/api/tasks/<id>/run
+```
+
+Notificar o usuário: `▶ [NomeAgent] iniciado automaticamente`
+
+### Pipeline: Manutenção / Hotfix
+
+```
+$ hotfix → Hotfix (diagnóstico) → Forge/Loom (se necessário) → Sentinel → Pilot → CI/CD
+```
+
+Sem meeting. Sentinel decide. Pilot commita e faz push.
+
+### Pipeline: Feature / Melhoria
+
+```
+$ feature → Planner (define escopo) → Forge/Loom → Sentinel → Pilot → CI/CD
+```
+
+### Confirmações em pt-BR
+
+| Situação | Resposta |
+|---|---|
+| Directive enviada (com meeting) | `✅ Directive enviada — reunião de briefing iniciada` |
+| Directive enviada (sem meeting) | `✅ Directive enviada — [Agent] em execução` |
+| Task registrada | `✅ Task registrada — [Agent] em execução` |
+| Próxima etapa auto-iniciada | `▶ [Agent] iniciado automaticamente` |
+| Pipeline concluído | `🚀 Pipeline concluído — sistema no ar` |
+| Erro | `❌ Erro: [motivo]` |
 
 <!-- END claw-empire orchestration rules -->
 

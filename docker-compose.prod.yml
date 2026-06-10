@@ -41,7 +41,7 @@ services:
       - /opt/claw-empire-config/claude-settings.json:/home/app/.claude/settings.json:ro
       # Projetos Uid montados para acesso dos agents
       - /var/www/studio-fluir:/var/www/studio-fluir
-      - /root/SytemD:/home/app/projects/SytemD
+      - /root/SystemD:/home/app/projects/SytemD
       - /opt/uid-skills:/opt/uid-skills
       - /opt/uidmail:/opt/uidmail
       - /opt/claw-empire:/opt/claw-empire

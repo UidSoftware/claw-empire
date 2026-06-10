@@ -125,7 +125,7 @@ curl http://localhost:8005/healthz
 - /opt/claw-empire-config/claude-settings.json:/home/app/.claude/settings.json:ro
 # Projetos Uid montados para acesso dos agents:
 - /var/www/studio-fluir:/var/www/studio-fluir
-- /root/SytemD:/home/app/projects/SytemD            # /root inacessível pelo user app
+- /root/SystemD:/home/app/projects/SytemD            # /root inacessível pelo user app
 - /opt/uid-skills:/opt/uid-skills
 - /opt/uidmail:/opt/uidmail
 - /opt/claw-empire:/opt/claw-empire
@@ -256,8 +256,21 @@ Tools disponíveis: mcp__systemd__query, mcp__systemd__list_tables,
                    mcp__systemd__describe_table, mcp__systemd__list_schemas
 ```
 
-O claw-empire está na rede `sytemd_default` via `docker network connect`.
-Restart do container preserva essa conexão de rede.
+O claw-empire precisa estar na rede `sytemd_default` via
+`docker network connect sytemd_default claw-empire` para alcançar o
+`sytemd-db-1` (172.19.0.2).
+
+⚠️ Essa conexão **não está em nenhum compose** — um `docker restart` a
+preserva, mas uma recriação do container (`docker compose up -d --no-deps
+claw-empire`, necessária após mudar mounts/env) a remove. Se o MCP parar
+com erro de conexão após recriar o container, reconectar manualmente:
+`docker network connect sytemd_default claw-empire`.
+
+A connection string do MCP usa a `POSTGRES_PASSWORD` do
+`/root/SystemD/.env.prod` (atualmente `devpassword123`). Se essa senha
+mudar, atualizar `/opt/claw-empire-config/claude-settings.json` e
+`claude-user.json` (chave `mcpServers.systemd`) — senão o `tools/call query`
+falha com "password authentication failed".
 
 **Permissões MCP** (em `/root/.claude/settings.json`):
 `mcp__systemd__query`, `mcp__systemd__list_tables`, `mcp__systemd__describe_table`
@@ -312,12 +325,12 @@ docker exec nginx-proxy-proxy-1 nginx -s reload
 | Projeto | Path no container | GitHub |
 |---|---|---|
 | Nos Studio Fluir | `/var/www/studio-fluir` | UidSoftware/NosFluir |
-| SystemD | `/home/app/projects/SytemD` | UidSoftware/SytemD |
+| SystemD | `/home/app/projects/SytemD` | UidSoftware/SystemD |
 | Claw Empire | `/opt/claw-empire` | UidSoftware/claw-empire |
 | UidMail | `/opt/uidmail` | UidSoftware/Uidmail |
 | UidSkills | `/opt/uid-skills` | UidSoftware/UidSkills |
 
-> `/root/SytemD` é montado como `/home/app/projects/SytemD` porque o diretório
+> `/root/SystemD` é montado como `/home/app/projects/SytemD` porque o diretório
 > `/root` não é acessível pelo usuário `app` (uid 10001) dentro do container.
 
 ---
@@ -392,6 +405,22 @@ VPS:      209.50.241.122 (usuário: notuidsoftware)
 ---
 
 ## Histórico
+
+### [2026-06-10] — Rename SytemD → SystemD + correção MCP postgres
+
+- Repo GitHub `UidSoftware/SytemD` renomeado para `UidSoftware/SystemD`
+- Diretório VPS `/root/SytemD` → `/root/SystemD`
+- Recursos Docker internos mantidos como `sytemd-*` via
+  `COMPOSE_PROJECT_NAME=sytemd` no `.env.prod` do SystemD (não alterar —
+  contém o volume `sytemd_pgdata` com o banco `uid_sistema`)
+- Bind mount do claw-empire atualizado para
+  `/root/SystemD:/home/app/projects/SystemD` (path interno do container
+  inalterado), container recriado para aplicar o novo mount
+- MCP postgres corrigido: `claude-settings.json`/`claude-user.json` tinham
+  senha desatualizada (`Uid@2026!ForteProd`); senha real é `devpassword123`
+  (de `.env.prod`). `tools/call query` validado OK
+- Reconectado `docker network connect sytemd_default claw-empire` (caído
+  após recriação do container)
 
 ### [2026-06-08] — Merge CLAUDE.md UidSkills → Empire
 

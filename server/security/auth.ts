@@ -12,6 +12,7 @@ import {
 
 const CSRF_TOKEN = createHash("sha256").update(`csrf:${SESSION_AUTH_TOKEN}`, "utf8").digest("hex");
 const TASK_INTERRUPT_TOKEN_SCOPE = "task_interrupt_v1";
+const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 dias
 
 export function isLoopbackHostname(hostname: string): boolean {
   const h = hostname.toLowerCase();
@@ -124,6 +125,7 @@ export function issueSessionCookie(req: Request, res: Response): void {
     "Path=/",
     "HttpOnly",
     "SameSite=Strict",
+    `Max-Age=${SESSION_COOKIE_MAX_AGE_SECONDS}`,
   ];
   if (shouldUseSecureCookie(req)) cookie.push("Secure");
   res.append("Set-Cookie", cookie.join("; "));
@@ -200,9 +202,7 @@ export function installSecurityMiddleware(app: Express): void {
   app.use(express.json({ limit: "12mb" }));
 
   app.get("/api/auth/session", (req, res) => {
-    const bearer = bearerToken(req);
-    const hasBearerAuth = bearer === SESSION_AUTH_TOKEN;
-    if (!isLoopbackRequest(req) && !hasBearerAuth) {
+    if (!isLoopbackRequest(req) && !isAuthenticated(req)) {
       return res.status(401).json({ error: "unauthorized" });
     }
     issueSessionCookie(req, res);

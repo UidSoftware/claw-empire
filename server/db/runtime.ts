@@ -41,6 +41,7 @@ export const REVIEW_MAX_MEMO_ITEMS_PER_ROUND = Math.max(
   Math.min(readNonNegativeIntEnv("REVIEW_MAX_MEMO_ITEMS_PER_ROUND", 8), 24),
 );
 export const REVIEW_MAX_REMEDIATION_REQUESTS = 1;
+export const REVIEW_MEETINGS_DISABLED = (process.env.DISABLE_REVIEW_MEETINGS ?? "").trim().toLowerCase() === "true";
 export const IN_PROGRESS_ORPHAN_GRACE_MS = Math.max(
   30_000,
   readNonNegativeIntEnv("IN_PROGRESS_ORPHAN_GRACE_MS", 600_000),
@@ -87,7 +88,8 @@ export function initializeDatabaseRuntime(): {
       `hold_cap=${REVIEW_MAX_REVISION_SIGNALS_PER_ROUND}/round, ` +
       `hold_cap_per_dept=${REVIEW_MAX_REVISION_SIGNALS_PER_DEPT_PER_ROUND}, ` +
       `memo_cap=${REVIEW_MAX_MEMO_ITEMS_PER_ROUND}/round, ` +
-      `memo_cap_per_dept=${REVIEW_MAX_MEMO_ITEMS_PER_DEPT}`,
+      `memo_cap_per_dept=${REVIEW_MAX_MEMO_ITEMS_PER_DEPT}, ` +
+      `meetings_disabled=${REVIEW_MEETINGS_DISABLED}`,
   );
   console.log(
     `[Claw-Empire] In-progress watchdog: grace=${IN_PROGRESS_ORPHAN_GRACE_MS}ms, ` +

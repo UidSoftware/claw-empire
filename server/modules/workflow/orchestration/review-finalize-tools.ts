@@ -7,6 +7,7 @@ import {
 } from "../packs/video-artifact.ts";
 import { evaluateRemotionOnlyGateFromLogFiles } from "../packs/video-render-engine-gate.ts";
 import { readYoloModeEnabled } from "../../routes/ops/messages/decision-inbox/yolo-mode.ts";
+import { REVIEW_MEETINGS_DISABLED } from "../../../db/runtime.ts";
 import { reconcileVideoRenderDelegationState } from "./video-render-delegation-state.ts";
 
 type CreateReviewFinalizeToolsDeps = Record<string, any>;
@@ -686,6 +687,12 @@ export function createReviewFinalizeTools(deps: CreateReviewFinalizeToolsDeps) {
 
     if (currentTask.source_task_id) {
       appendTaskLog(taskId, "system", "Review consensus skipped for delegated collaboration task");
+      finalizeApprovedReview();
+      return;
+    }
+
+    if (REVIEW_MEETINGS_DISABLED) {
+      appendTaskLog(taskId, "system", "Review consensus meeting disabled (DISABLE_REVIEW_MEETINGS=true)");
       finalizeApprovedReview();
       return;
     }
